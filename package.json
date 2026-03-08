@@ -1,0 +1,10 @@
+{
+  "name": "artificial-life-wasm",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:web": "./scripts/build-web.sh",
+    "serve:web": "./scripts/serve-web.sh 8000 8443",
+    "build:pages": "./scripts/build-pages.sh"
+  }
+}

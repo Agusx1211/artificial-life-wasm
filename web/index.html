@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>Artificial Life | WebAssembly</title>
+    <meta name="theme-color" content="#05080c" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="stylesheet" href="./style.css" />
+    <script>
+      (() => {
+        const reloadKey = "artificial-life:coi-reload";
+        if (window.crossOriginIsolated || !window.isSecureContext || !("serviceWorker" in navigator)) {
+          sessionStorage.removeItem(reloadKey);
+          return;
+        }
+
+        const reloadOnce = () => {
+          if (sessionStorage.getItem(reloadKey) === "1") {
+            return;
+          }
+          sessionStorage.setItem(reloadKey, "1");
+          window.location.reload();
+        };
+
+        navigator.serviceWorker
+          .register("./coi-serviceworker.js")
+          .then((registration) => {
+            if (registration.active && navigator.serviceWorker.controller) {
+              sessionStorage.removeItem(reloadKey);
+              return;
+            }
+
+            navigator.serviceWorker.addEventListener("controllerchange", reloadOnce, {
+              once: true,
+            });
+          })
+          .catch((error) => {
+            console.warn("COI service worker unavailable", error);
+          });
+      })();
+    </script>
+  </head>
+  <body>
+    <main class="app-shell">
+      <canvas id="universe-canvas" tabindex="0" aria-label="simulation map"></canvas>
+      <div class="stage-glow" aria-hidden="true"></div>
+
+      <section id="ui-shell" class="ui-shell">
+        <header class="hud-bar glass">
+          <div class="brand-pill" aria-label="app name">
+            <span class="brand-dot"></span>
+            <span class="brand-name">artificial-life</span>
+          </div>
+
+          <a
+            class="repo-link"
+            href="https://github.com/Agusx1211/artificial-life-wasm"
+            target="_blank"
+            rel="noreferrer"
+            aria-label="open github repository"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M8 0C3.58 0 0 3.58 0 8a8 8 0 0 0 5.47 7.59c.4.07.55-.17.55-.38
+                0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13
+                -.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07
+                -.52.28-.87.5-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08
+                -.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.65 7.65 0 0 1 4 0c1.53-1.04
+                2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07
+                -1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15
+                .46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"
+              />
+            </svg>
+            <span>github</span>
+          </a>
+
+          <div class="stats-row" aria-label="simulation status">
+            <span class="hud-chip">
+              <span class="chip-label">state</span>
+              <strong id="state-pill">load</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">engine</span>
+              <strong id="engine-value">detect</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">pace</span>
+              <strong id="speed-value">max</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">speed</span>
+              <strong id="throughput-value">0 ep/s</strong>
+            </span>
+            <span class="hud-chip desktop-only">
+              <span class="chip-label">epoch</span>
+              <strong id="epoch-value">0</strong>
+            </span>
+            <span class="hud-chip desktop-only">
+              <span class="chip-label">zoom</span>
+              <strong id="zoom-value">1.00x</strong>
+            </span>
+            <span class="hud-chip desktop-only">
+              <span class="chip-label">opc</span>
+              <strong id="opcode-value">0.00%</strong>
+            </span>
+            <span class="hud-chip desktop-only">
+              <span class="chip-label">grid</span>
+              <strong id="resolution-note">240x135</strong>
+            </span>
+          </div>
+
+          <div class="pace-dock" aria-label="simulation pace">
+            <span class="chip-label">pace</span>
+            <div class="pace-controls">
+              <button id="speed-down-button" type="button" aria-label="slower pace">-</button>
+              <select id="speed-select" class="pace-select" name="speed">
+                <option value="0.01">0.01x</option>
+                <option value="0.02">0.02x</option>
+                <option value="0.05">0.05x</option>
+                <option value="0.1">0.10x</option>
+                <option value="0.25">0.25x</option>
+                <option value="0.5">0.50x</option>
+                <option value="1">1.00x</option>
+                <option value="2">2.00x</option>
+                <option value="4">4.00x</option>
+                <option value="max" selected>max</option>
+              </select>
+              <button id="speed-up-button" type="button" aria-label="faster pace">+</button>
+            </div>
+          </div>
+
+          <div class="action-dock">
+            <button id="toggle-button" type="button" class="primary">pause</button>
+            <button id="step-button" type="button">step</button>
+            <button id="quick-reset-button" type="button">reset</button>
+            <button id="settings-button" type="button">tune</button>
+            <button id="hide-ui-button" type="button">hide</button>
+          </div>
+        </header>
+
+        <p id="runtime-note" class="runtime-note glass" hidden>
+          Compiling the WebAssembly module...
+        </p>
+
+        <form id="controls-form" class="controls-panel glass" hidden>
+          <div class="panel-head">
+            <p class="eyebrow">tune</p>
+            <p class="panel-title">simulation</p>
+          </div>
+
+          <div class="field-grid">
+            <label>
+              <span>threads</span>
+              <select id="threads-select" name="threads">
+                <option value="auto">auto</option>
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+                <option value="8">8</option>
+                <option value="12">12</option>
+                <option value="16">16</option>
+                <option value="24">24</option>
+                <option value="32">32</option>
+              </select>
+            </label>
+
+            <label>
+              <span>seed</span>
+              <input id="seed-input" name="seed" type="number" value="1" min="0" step="1" />
+            </label>
+
+            <label>
+              <span>width</span>
+              <input
+                id="width-input"
+                name="width"
+                type="number"
+                value="240"
+                min="8"
+                max="4096"
+                step="1"
+              />
+            </label>
+
+            <label>
+              <span>height</span>
+              <input
+                id="height-input"
+                name="height"
+                type="number"
+                value="135"
+                min="8"
+                max="4096"
+                step="1"
+              />
+            </label>
+
+            <label>
+              <span>mutation %</span>
+              <input
+                id="mutation-input"
+                name="mutation"
+                type="number"
+                value="0.024"
+                min="0"
+                max="5"
+                step="0.001"
+              />
+            </label>
+
+            <label>
+              <span>epoch batch</span>
+              <input
+                id="epochs-input"
+                name="epochs"
+                type="number"
+                value="4"
+                min="1"
+                max="128"
+                step="1"
+              />
+            </label>
+          </div>
+
+          <p class="nav-hint">click inspect | drag pan | wheel zoom | +/- zoom | [ ] pace | 0 reset | h hide ui</p>
+          <a id="secure-link" class="secure-link" href="#" hidden>open secure multicore url</a>
+          <p id="status-line" class="panel-copy">Compiling the WebAssembly module...</p>
+
+          <div class="preset-row">
+            <button id="fast-preset" type="button">fast</button>
+            <button id="original-preset" type="button">original</button>
+            <button type="submit" class="primary">apply</button>
+          </div>
+        </form>
+
+        <section id="inspect-panel" class="inspect-panel glass" hidden>
+          <div class="inspect-head">
+            <div>
+              <p class="eyebrow">inspect</p>
+              <p id="inspect-title" class="panel-title">click a colony</p>
+            </div>
+            <button id="inspect-close-button" type="button">close</button>
+          </div>
+
+          <div class="inspect-meta">
+            <span class="hud-chip">
+              <span class="chip-label">cell</span>
+              <strong id="inspect-coord-value">-</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">peer</span>
+              <strong id="inspect-peer-value">-</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">pc</span>
+              <strong id="trace-pc-value">-</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">h0</span>
+              <strong id="trace-head0-value">-</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">h1</span>
+              <strong id="trace-head1-value">-</strong>
+            </span>
+            <span class="hud-chip">
+              <span class="chip-label">steps</span>
+              <strong id="trace-steps-value">0</strong>
+            </span>
+          </div>
+
+          <label class="inspect-peer-select">
+            <span>peer</span>
+            <select id="inspect-peer-select"></select>
+          </label>
+
+          <div class="inspect-actions">
+            <button id="inspect-capture-button" type="button">trace</button>
+            <button id="trace-toggle-button" type="button">play</button>
+            <button id="trace-step-button" type="button" class="primary">step</button>
+            <button id="trace-reset-button" type="button">live</button>
+          </div>
+
+          <div class="trace-grid-wrap">
+            <section class="trace-block">
+              <p class="trace-label">left</p>
+              <div id="trace-left-grid" class="code-grid" aria-label="left program trace"></div>
+            </section>
+
+            <section class="trace-block">
+              <p class="trace-label">right</p>
+              <div id="trace-right-grid" class="code-grid" aria-label="right program trace"></div>
+            </section>
+          </div>
+
+          <p id="trace-status" class="panel-copy">click a colony to inspect and trace it.</p>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js?v=16"></script>
+  </body>
+</html>
