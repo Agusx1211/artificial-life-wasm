@@ -4,7 +4,7 @@ Browser-first Rust/WebAssembly implementation of [Computational Life: How Well-f
 
 This repository contains the browser/WebAssembly version of the simulation.
 
-- WebAssembly repo: <https://github.com/Agusx1211/artificial-life-wasm>
+- Live site: <https://agusx1211.github.io/artificial-life-wasm/>
 - Original repo: <https://github.com/Rabrg/artificial-life>
 
 ![Application screenshot](./assets/app-screenshot.png)

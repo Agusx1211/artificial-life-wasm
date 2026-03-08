@@ -28,11 +28,13 @@ jobs:
       - name: Install stable Rust
         uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: stable
           targets: wasm32-unknown-unknown
 
       - name: Install threaded Rust toolchain
-        uses: dtolnay/rust-toolchain@nightly-2025-11-15
+        uses: dtolnay/rust-toolchain@stable
         with:
+          toolchain: nightly-2025-11-15
           components: rust-src
           targets: wasm32-unknown-unknown
 

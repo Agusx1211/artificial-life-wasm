@@ -10,6 +10,7 @@ SINGLE_WASM="$SINGLE_TARGET_DIR/wasm32-unknown-unknown/release/artificial_life_w
 THREAD_WASM="$THREAD_TARGET_DIR/wasm32-unknown-unknown/release/artificial_life_wasm.wasm"
 SINGLE_OUT_DIR="$WEB_OUTPUT_DIR/pkg-single"
 THREAD_OUT_DIR="$WEB_OUTPUT_DIR/pkg-threaded"
+STABLE_TOOLCHAIN="${STABLE_TOOLCHAIN:-stable}"
 THREAD_TOOLCHAIN="${THREAD_TOOLCHAIN:-nightly-2025-11-15}"
 THREAD_RUSTFLAGS="${THREAD_RUSTFLAGS:--C target-feature=+atomics,+bulk-memory,+mutable-globals -C link-arg=--shared-memory -C link-arg=--max-memory=1073741824 -C link-arg=--import-memory -C link-arg=--export=__wasm_init_tls -C link-arg=--export=__tls_size -C link-arg=--export=__tls_align -C link-arg=--export=__tls_base}"
 
@@ -24,7 +25,7 @@ fi
 rm -rf "$SINGLE_OUT_DIR" "$THREAD_OUT_DIR"
 
 CARGO_TARGET_DIR="$SINGLE_TARGET_DIR" \
-  cargo build \
+  cargo +"$STABLE_TOOLCHAIN" build \
   --manifest-path "$ROOT_DIR/Cargo.toml" \
   --release \
   --target wasm32-unknown-unknown
