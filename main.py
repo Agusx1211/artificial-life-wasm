@@ -208,11 +208,8 @@ def run_epochs(
     nepochs: int,
     mutation_rate: float,
     rng: np.random.Generator,
-    gif_every: int = 100,
+    gif_every: int,
 ) -> list[Image.Image]:
-    if gif_every <= 0:
-        raise ValueError("--gif-every must be > 0")
-
     grid_width, grid_height, tape_size = programs.shape
     num_programs = grid_width * grid_height
     flat_programs = programs.reshape(num_programs, tape_size)
@@ -242,7 +239,7 @@ def run_epochs(
         run_epoch_pairs(flat_programs, pairs, pair_count)
         apply_background_mutation(programs, mutation_rate, rng)
         if color_lut is not None and (
-            (epoch + 1) % gif_every == 0 or epoch + 1 == nepochs
+            (epoch + 1) % gif_every == 0 or epoch + 1 == nepochs or epoch == 0
         ):
             frames.append(
                 Image.fromarray(render_program_frame(programs, color_lut), mode="RGB")
